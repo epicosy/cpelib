@@ -11,10 +11,13 @@ class Reference(BaseModel):
 
     @staticmethod
     def _extract_tags_from_text(text: str) -> List[str]:
+        # TODO: it should also include the reference link, as it can provide more context
         if not text:
             return []
 
-        clean_text = text.strip().replace("-", " ").replace("/", " ")
+        # TODO: cleaning should be done in a standard way
+        clean_text = (text.strip().replace("-", " ").replace("/", " ")
+                      .replace("_", " "))
         clean_text = "".join(char for char in clean_text if not char.isdigit())
 
         terms = set(clean_text.lower().split())
