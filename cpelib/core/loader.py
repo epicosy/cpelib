@@ -45,6 +45,8 @@ class CPEDictionaryLoader:
         return self.root.nsmap
 
     def __call__(self, *args, **kwargs):
+        # TODO: this probably should have an option to either return the items or the dictionary
+
         """
         Parses the XML file incrementally and yields chunks of CPE items.
 
