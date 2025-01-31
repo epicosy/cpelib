@@ -1,10 +1,10 @@
 
-from lxml import etree
-from typing import Dict
+from typing import Dict, List
 from pydantic import BaseModel, Field
 
 from cpelib.types.item import CPEItem
 from cpelib.types.vendor import Vendor
+from cpelib.types.reference import Reference
 
 
 class CPEDictionary(BaseModel):
@@ -14,23 +14,14 @@ class CPEDictionary(BaseModel):
     def __len__(self):
         return len(self.items)
 
-    def add_item(self, element: etree._Element, nsmap: dict) -> CPEItem:
+    def add_item(self, cpe_item: CPEItem):
         """
-            Adds a CPEItem parsed from the given XML element.
+            Adds a CPEItem and its vendor and product to the dictionary.
 
             Args:
-                element (etree._Element): The XML element to parse.
-                nsmap (dict): The namespace map for the XML document
+                cpe_item (CPEItem): The CPE item to add.
         """
-        # TODO: find cpe23-item with short version of namespace
-        cpe_item = CPEItem(
-            name=element.get('name'),
-            title=element.find('title', nsmap).text,
-            cpe=element.find('{http://scap.nist.gov/schema/cpe-extension/2.3}cpe23-item').get('name'),
-            deprecated=element.get('deprecated') == 'true',
-            deprecation_date={'deprecation_date': element.get('deprecation_date')},
-            references={'references': element.find('references', nsmap)}
-        )
+
         self.items[cpe_item.name] = cpe_item
 
         vendor = self.vendors.get(cpe_item.cpe.vendor, None)
@@ -43,4 +34,17 @@ class CPEDictionary(BaseModel):
             product = cpe_item.cpe.get_product()
             vendor.add_product(product)
 
-        yield cpe_item
+    def get_references(self) -> List[Reference]:
+        """
+            Returns all references in the dictionary.
+
+            Returns:
+                List[Reference]: List of references.
+        """
+
+        references = []
+
+        for cpe_item in self.items.values():
+            references.extend(cpe_item.references)
+
+        return references

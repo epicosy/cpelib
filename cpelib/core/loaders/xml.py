@@ -1,13 +1,14 @@
-from lxml import etree
-
-from cpelib.types.dictionary import CPEDictionary
-from cpelib.types.generator import GeneratorInfo
-
-from pathlib import Path
 from tqdm import tqdm
+from lxml import etree
+from pathlib import Path
+from typing import Iterator
+
+from cpelib.types.item import CPEItem
+from cpelib.types.generator import GeneratorInfo
+from cpelib.core.loaders.base import BaseCPELoader
 
 
-class CPEDictionaryLoader:
+class XMLLoader(BaseCPELoader):
     def __init__(self, xml_file: str = '~/.cpelib/official-cpe-dictionary_v2.3.xml'):
         """
         Loader for CPE dictionary XML files. Parses the cpe-item elements in chunks.
@@ -24,7 +25,6 @@ class CPEDictionaryLoader:
 
         self.xml_file = xml_file
         self.generator_info = None
-        self.dictionary = CPEDictionary()  # Holds items
 
         self.context = etree.iterparse(self.xml_file, events=('start', 'end'))
         _, self.root = next(self.context)
@@ -44,21 +44,29 @@ class CPEDictionaryLoader:
         """Returns the namespace map of the XML document."""
         return self.root.nsmap
 
-    def __call__(self, *args, **kwargs):
-        # TODO: this probably should have an option to either return the items or the dictionary
-
+    def __call__(self, *args, **kwargs) -> Iterator[CPEItem]:
         """
-        Parses the XML file incrementally and yields chunks of CPE items.
+        Parses the XML file incrementally and yields CPE items.
 
         Yields:
-            List[CPEItem]: Chunks of CPE items.
+            CPEItem: Parsed CPE item.
         """
 
         with tqdm(desc="Processing CPE items", unit="item") as pbar:
             # Process <cpe-item> elements
             for event, element in self.context:
                 if event == 'end' and element.tag.endswith('cpe-item'):
-                    yield from self.dictionary.add_item(element, self.nsmap)
+                    # TODO: find cpe23-item with short version of namespace
+                    cpe_item = CPEItem(
+                        name=element.get('name'),
+                        title=element.find('title', self.nsmap).text,
+                        cpe=element.find('{http://scap.nist.gov/schema/cpe-extension/2.3}cpe23-item').get('name'),
+                        deprecated=element.get('deprecated') == 'true',
+                        deprecation_date={'deprecation_date': element.get('deprecation_date')},
+                        references={'references': element.find('references', self.nsmap)}
+                    )
+
+                    yield cpe_item
                     element.clear()  # Clear the current cpe-item node from memory
 
                     # Free up memory for processed elements
