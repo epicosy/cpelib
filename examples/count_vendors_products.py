@@ -1,6 +1,6 @@
-from cpelib.core.loader import CPEDictionaryLoader
+from cpelib.core.loaders.xml import XMLLoader
 
-loader = CPEDictionaryLoader()
+loader = XMLLoader()
 
 for item in loader():
     pass
